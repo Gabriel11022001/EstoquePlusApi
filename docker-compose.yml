@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  estoque_plus_database:
+    image: mysql:latest
+    container_name: 'EstoquePlusDatabase'
+    ports:
+      - 12000:3306
+    volumes:
+      - ./docker_volumes/database:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
