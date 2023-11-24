@@ -38,4 +38,9 @@ class ValidaCamposCadastroUsuario
 
         return $errosCampos;
     }
+
+    public static function validarCamposRegistrarse($campos) {
+
+        return [];
+    }
 }

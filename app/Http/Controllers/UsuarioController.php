@@ -27,4 +27,9 @@ class UsuarioController extends Controller
 
         return $this->usuarioServico->buscarTodosUsuarios($empresaId);
     }
+
+    public function registrarse(Request $requisicao) {
+        
+        return $this->usuarioServico->registrarse($requisicao);
+    }
 }

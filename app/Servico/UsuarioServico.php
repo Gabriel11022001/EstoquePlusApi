@@ -325,4 +325,159 @@ class UsuarioServico implements IServico
         }
 
     }
+
+    public function registrarse(Request $requisicao) {
+        DB::beginTransaction();
+
+        try {
+            $errosCampos = ValidaCamposCadastroUsuario::validarCamposRegistrarse([
+                'nome' => $requisicao->nome,
+                'telefone' => $requisicao->telefone['numero_telefone'],
+                'ddi' => $requisicao->telefone['ddi'],
+                'ddd' => $requisicao->telefone['ddd'],
+                'email' => $requisicao->email,
+                'data_nascimento' => $requisicao->data_nascimento,
+                'cpf' => $requisicao->cpf,
+                'empresa' => $requisicao->empresa,
+                'senha' => $requisicao->senha,
+                'senha_confirmacao' => $requisicao->senha_confirmacao
+            ]);
+            
+            if (count($errosCampos) > 0) {
+
+                return response()->json([
+                    'msg' => 'Ocorreram erros de validação de dados!',
+                    'dados' => $errosCampos,
+                    'ok' => false
+                ], 200);
+            }
+            
+            $empresa = Empresa::where('cnpj', $requisicao->empresa['cnpj'])->get()->toArray();
+
+            if (!empty($empresa)) {
+
+                return response()
+                    ->json([
+                        'msg' => 'Já existe uma empresa cadastrada com esse cnpj, caso você seja um funcionário dessa empresa, solicite ao administrador que o cadastre no sistema!',
+                        'dados' => null,
+                        'ok' => false
+                    ], 200);
+            }
+
+            $empresaCadastrar = new Empresa();
+            $empresaCadastrar->nome = $requisicao->empresa['nome'];
+            $empresaCadastrar->ddi = $requisicao->empresa['ddi'];
+            $empresaCadastrar->ddd = $requisicao->empresa['ddd'];
+            $empresaCadastrar->telefone = $requisicao->empresa['telefone'];
+            $empresaCadastrar->cnpj = $requisicao->empresa['cnpj'];
+            $empresaCadastrar->email = $requisicao->empresa['email'];
+            $empresaCadastrar->cep = $requisicao->empresa['cep'];
+            $empresaCadastrar->endereco = $requisicao->empresa['endereco'];
+            $empresaCadastrar->bairro = $requisicao->empresa['bairro'];
+            $empresaCadastrar->cidade = $requisicao->empresa['cidade'];
+            $empresaCadastrar->uf = $requisicao->empresa['uf'];
+            $empresaCadastrar->numero = $requisicao->empresa['numero'];
+            var_dump($empresaCadastrar->nome);
+
+            if (!$empresaCadastrar->save()) {
+                DB::rollBack();
+
+                return response()->json([
+                    'msg' => 'Ocorreu um erro ao tentar-se registrar, por gentileza, tente novamente!',
+                    'dados' => null,
+                    'ok' => false
+                ], 200);
+            }
+
+            if (!empty(Usuario::where('cpf', $requisicao->cpf)->get()->toArray())) {
+                DB::rollBack();
+
+                return response()->json([
+                    'msg' => 'Já existe um perfil cadastrado com esse cpf, informe outro cpf!',
+                    'dados' => null,
+                    'ok' => false
+                ], 200);
+            }
+
+            if (!empty(Usuario::where('email', $requisicao->email)->get()->toArray())) {
+                DB::rollBack();
+
+                return response()->json([
+                    'msg' => 'Já existe um perfil cadastrado com esse e-mail, informe outro e-mail!',
+                    'dados' => null,
+                    'ok' => false
+                ], 200);
+            }   
+
+            $usuario = new Usuario();
+            $usuario->nome = mb_strtoupper($requisicao->nome);
+            $usuario->email = $requisicao->email;
+            $usuario->cpf = $requisicao->cpf;
+            $usuario->senha = md5($requisicao->senha);
+            $usuario->empresa_id = $empresaCadastrar->id;
+            $dataNascimentoCadastrar = new DateTime($requisicao->data_nascimento);
+            $usuario->data_nascimento = $dataNascimentoCadastrar->format('Y-m-d');
+
+            if (!$usuario->save()) {
+                DB::rollBack();
+
+                return response()->json([
+                    'msg' => 'Ocorreu um erro ao tentar-se registrar, por gentileza, tente novamente!',
+                    'dados' => null,
+                    'ok' => false
+                ], 200);
+            }
+
+            if (!empty(TelefoneUsuario::where('numero_telefone', $requisicao->telefone['numero_telefone'])->get()->toArray())) {
+                DB::rollBack();
+
+                return response()->json([
+                    'msg' => 'Informe outro telefone!',
+                    'dados' => null,
+                    'ok' => false
+                ], 200);
+            }
+
+            $telefone = new TelefoneUsuario();
+            $telefone->ddi = $requisicao->telefone['ddi'];
+            $telefone->ddd = $requisicao->telefone['ddd'];
+            $telefone->numero_telefone = $requisicao->telefone['numero_telefone'];
+            $telefone->usuario_id = $usuario->id;
+
+            if (!$telefone->save()) {
+                DB::rollBack();
+
+                return response()->json([
+                    'msg' => 'Ocorreu um erro ao tentar-se registrar, por gentileza, tente novamente!',
+                    'dados' => null,
+                    'ok' => false
+                ], 200);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'msg' => 'Seu perfil foi cadastrado com sucesso, você será redirecionado em instantes para a tela de login!',
+                'dados' => [
+                    'id' => $usuario->id,
+                    'nome' => $usuario->nome,
+                    'email' => $usuario->email,
+                    'cpf' => $usuario->cpf,
+                    'data_nascimento' => $usuario->data_nascimento,
+                    'telefone' => $telefone->ddi . '(' . $telefone->ddd . ')' . ' ' . $telefone->numero_telefone,
+                    'empresa' => $empresaCadastrar->nome
+                ], 
+                'ok' => true
+            ], 201);
+        } catch (Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'msg' => 'Ocorreu um erro ao tentar-se registrar, por gentileza, tente novamente!' . $e->getMessage(),
+                'dados' => null,
+                'ok' => false
+            ], 200);
+        }
+
+    }
 }
