@@ -15,14 +15,13 @@ class CategoriaServico implements IServico
         
         try {
             $validador = Validator::make($requisicao->all(), [
-                'descricao' => 'required|min:3|max:255|unique:categoria_produtos',
+                'descricao' => 'required|min:3|max:255',
                 'empresa_id' => 'required|numeric|min:1'
             ],
             [
                 'descricao.required' => 'Informe a descrição da categoria!',
                 'descricao.min' => 'A descrição da categoria deve possuir no mínimo 3 caracteres!',
                 'descricao.max' => 'A descrição da categoria deve possuir no máximo 255 caracteres!',
-                'descricao.unique' => 'Já existe uma categoria cadastrada para sua empresa com essa descrição!',
                 'empresa_id.required' => 'Informe o id da empresa!',
                 'empresa_id.numeric' => 'O id da empresa deve ser um valor numérico!',
                 'empresa_id.min' => 'O id da empresa deve ser maior ou igual a 1!'
@@ -57,6 +56,21 @@ class CategoriaServico implements IServico
                         'msg' => 'A empresa em questão não está com ativa!',
                         'dados' => null,
                         'ok' => false
+                    ], 200);
+            }
+
+            $categoriaComDescricaoInformada = CategoriaProduto::where('descricao', $requisicao->descricao)
+                ->where('empresa_id', $requisicao->empresa_id)
+                ->get()
+                ->toArray();
+
+            if (!empty($categoriaComDescricaoInformada)) {
+
+                return response()
+                    ->json([
+                        'msg' => 'Já existe uma categoria de produto da sua empresa cadastrada com essa descrição, informe outra descrição!',
+                        'dados' => null,
+                        'ok' => false 
                     ], 200);
             }
 
