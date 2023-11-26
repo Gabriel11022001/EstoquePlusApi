@@ -4,9 +4,11 @@ namespace App\Servico;
 
 use App\Models\Administrador;
 use App\Models\Empresa;
+use App\Models\Plano;
 use App\Models\TelefoneUsuario;
 use App\Models\Usuario;
 use App\Models\Vendedor;
+use App\Utils\ObterDataLimiteContratacaoPlano;
 use App\Utils\ValidaCamposCadastroUsuario;
 use DateTime;
 use Exception;
@@ -364,6 +366,28 @@ class UsuarioServico implements IServico
                     ], 200);
             }
 
+            $plano = Plano::find($requisicao->empresa['plano_id'])->get()->toArray();
+
+            if (empty($plano)) {
+                DB::rollBack();
+
+                return response()->json([
+                    'msg' => 'Não existe um plano cadastrado com esse id!',
+                    'dados' => null,
+                    'ok' => false
+                ], 200);
+            }
+
+            if (!$plano[0]['status']) {
+                DB::rollBack();
+
+                return response()->json([
+                    'msg' => 'O plano que vocês está tentando contratar não está ativo!',
+                    'dados' => null,
+                    'ok' => false
+                ], 200);
+            }
+
             $empresaCadastrar = new Empresa();
             $empresaCadastrar->nome = $requisicao->empresa['nome'];
             $empresaCadastrar->ddi = $requisicao->empresa['ddi'];
@@ -377,7 +401,12 @@ class UsuarioServico implements IServico
             $empresaCadastrar->cidade = $requisicao->empresa['cidade'];
             $empresaCadastrar->uf = $requisicao->empresa['uf'];
             $empresaCadastrar->numero = $requisicao->empresa['numero'];
-            var_dump($empresaCadastrar->nome);
+            $empresaCadastrar->plano_id = $requisicao->empresa['plano_id'];
+            $dataContratacaoPlano = new DateTime('now');
+            $dataLimiteContratacaoPlano = ObterDataLimiteContratacaoPlano::obterDataLimite($dataContratacaoPlano, $requisicao->empresa['tempo_contratacao_plano']);
+            $empresaCadastrar->data_contratacao_plano = $dataContratacaoPlano->format('Y-m-d H:i:s');
+            $empresaCadastrar->data_limite_contrato_plano = $dataLimiteContratacaoPlano->format('Y-m-d H:i:s');
+            $empresaCadastrar->tempo_contratacao_plano = $requisicao->empresa['tempo_contratacao_plano'];
 
             if (!$empresaCadastrar->save()) {
                 DB::rollBack();
@@ -465,7 +494,8 @@ class UsuarioServico implements IServico
                     'cpf' => $usuario->cpf,
                     'data_nascimento' => $usuario->data_nascimento,
                     'telefone' => $telefone->ddi . '(' . $telefone->ddd . ')' . ' ' . $telefone->numero_telefone,
-                    'empresa' => $empresaCadastrar->nome
+                    'empresa' => $empresaCadastrar->nome,
+                    'plano' => $plano[0]['descricao']
                 ], 
                 'ok' => true
             ], 201);
@@ -473,7 +503,7 @@ class UsuarioServico implements IServico
             DB::rollBack();
 
             return response()->json([
-                'msg' => 'Ocorreu um erro ao tentar-se registrar, por gentileza, tente novamente!' . $e->getMessage(),
+                'msg' => 'Ocorreu um erro ao tentar-se registrar, por gentileza, tente novamente!',
                 'dados' => null,
                 'ok' => false
             ], 200);

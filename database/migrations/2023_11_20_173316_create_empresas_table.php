@@ -43,6 +43,13 @@ return new class extends Migration
             $table->string('telefone')
                 ->nullable(false);
             $table->string('email');
+            $table->unsignedBigInteger('plano_id')
+                ->nullable(false);
+            $table->dateTime('data_contratacao_plano')
+                ->nullable(false);
+            $table->dateTime('data_limite_contrato_plano')
+                ->nullable(false);
+            $table->foreign('plano_id')->references('id')->on('planos');
         });
     }
 
