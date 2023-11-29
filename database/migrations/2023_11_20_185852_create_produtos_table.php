@@ -30,7 +30,6 @@ return new class extends Migration
             $table->foreign('categoria_produto_id')
                 ->references('id')
                 ->on('categoria_produtos');
-            $table->string('foto_produto');
         });
     }
 
